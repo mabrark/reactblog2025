@@ -3,7 +3,7 @@ import { BrowserRouter, Routes, Route } from 'react-router-dom'; // npm install 
 import './App.css';
 import Navbar from './components/Navbar';
 import CreatePost from './components/CreatePost';
-// import Post from './components/Post';
+import Post from './components/Post';
 import PostList from './components/PostList';
 
 function App() {
