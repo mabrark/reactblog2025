@@ -19,5 +19,32 @@
     $stmt->bind_param('i', $id);
     $stmt->execute();
     $result = $stmt->get_result();
+
+    if ($result->num_rows == 1)
+    {
+      $post = $result->fetch_assoc();
+
+      $response = [
+        'status' => 'success'
+        'data' => [
+          'id' => $post['id'],
+          'title' => $post['content'],
+          'content'
+          'author'
+          'date' => date("l js \of F y", strtotime($post['publish_date'])),
+          'likes' => $post['numLikes'],
+          'dislikes' => $post['numDislike']
+        ]
+        ];
+        header('Content-Type: applicationb/json');
+        echo json_encode($response);
+
+    }
+    else
+    {
+     $response = [
+      'status' => 'error'
+     ]
+    } 
    }
 ?>
