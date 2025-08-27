@@ -1,64 +1,61 @@
 <?php
-   header("Content-Type: application/json");
-   
-   // Load configuration files
-   require_once('../config/config.php');
-   require_once('../config/database.php');
 
-   // Define configuration options
-   $allowedMethods = ['GET'];
-   $maxPostsPerPage = 4;
+header("Access-Control-Allow-Origin: *");  // Or specify your frontend domain
+header("Access-Control-Allow-Methods: POST, OPTIONS");
+header("Access-Control-Allow-Headers: Content-Type");
+header("Content-Type: application/json");
 
-   // Implement basic pagination
-   $page = isset($_GET['page']) ? (int)$_GET['page'] : 1;
-   $offset = ($page - 1) * $maxPostsPerPage;
+require_once('../config/config.php');
+require_once('../config/database.php');
 
-   // Query to count total posts
-   $countQuery = "SELECT COUNT(*) AS totalPosts FROM blog_posts";
-   $countResult = mysqli_query($conn, $countQuery);
-   $countRow = mysqli_fetch_assoc($countResult);
-   $totalPosts = $countRow['totalPosts'];
-
-   // check if total posts query is successful
-   if (!$countResult)
-   {
-    http_response_code(500); // internal server error
-    echo json_encode(['message' => 'Error querying database for total
-        posts count: ' . mysqli_error($conn)]);
-    mysqli_close($conn);
+if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') { // handle options
+    http_response_code(200);
     exit();
-   }
+  }
 
-   // query to get all blog posts with pagination and ordering
-   $query = "SELECT * FROM blog_posts ORDER BY publish_date DESC LIMIT $offset, $maxPostsPerPage";
-   $result = mysqli_query($conn, $query);
+// retrieve the request body as a string
+$request_body = file_get_contents('php://input'); 
 
-   // check if get all blog posts query is successful
-   if (!$result)
-   {
-    http_response_code(500); // internal server error
-    echo json_encode(['message' => 'Error querying database for paginated
-        posts: ' . mysqli_error($conn)]);
-    mysqli_close($conn);
+// Decode the JSON data into a PHP array
+$data = json_decode($request_body, true);
+
+// Validate input fields with basic validation
+if (empty($data['title']) || empty($data['content']) || empty($data['author']) ) {
+    http_response_code(400);
+    echo json_encode(['message' => 'Error: Missing or empty required parameter']);
     exit();
-   }
+}
 
-   // convert query result into an associative array
-   $posts = mysqli_fetch_all($result, MYSQLI_ASSOC);
+// Validate input fields
+if (!isset($data['title']) || !isset($data['content']) || !isset($data['author']) ) {
+    http_response_code(400);
+    die(json_encode(['message' => 'Error: Missing required parameter']));
+}
 
-   // check if there are posts
-   if (empty($posts))
-   {
-    http_response_code(404); // not found error
-    echo json_encode(['message' => 'No posts found', 'totalPosts' => $totalPosts]); 
-   }
-   else
-   {
-    // return JSON response including totalPosts
-    echo json_encode(['posts' => $posts, 'totalPosts' => $totalPosts]); 
-   }
+// Sanitize input
+$title = filter_var($data['title'], FILTER_SANITIZE_STRING);
+$content = filter_var($data['content'], FILTER_SANITIZE_STRING);
+$author = filter_var($data['author'], FILTER_SANITIZE_STRING);
 
-   // close database connection
-   mysqli_close($conn);
+// Prepare statement
+$stmt = $conn->prepare('INSERT INTO blog_posts (title, content, author) VALUES(?, ?, ?)');
+$stmt->bind_param('sss', $title, $content, $author);
+
+// Execute statement
+if ($stmt->execute()) {
+    $id = $stmt->insert_id;
+
+    // Return success response
+    http_response_code(201);
+    echo json_encode(['message' => 'Post created successfully', 'id' => $id]);
+}
+else{
+    // Return error response with more detail if possible
+    http_response_code(500);
+    echo json_encode(['message' => 'Error creating post: ' . $stmt->error]);
+}
+
+$stmt->close();
+$conn->close();
 
 ?>
